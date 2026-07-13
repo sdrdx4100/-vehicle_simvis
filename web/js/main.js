@@ -10,6 +10,7 @@ import { ChartSync, TimeChart } from "./charts.js";
 import { Timeline } from "./timeline.js";
 import { TableView } from "./table.js";
 import { ShiftPanel } from "./shiftpanel.js";
+import { VehicleView } from "./vehicleview.js";
 import { el, fmtTime, ROLE_COLORS, ROLE_LABELS } from "./util.js";
 
 const $ = (sel) => document.querySelector(sel);
@@ -23,6 +24,7 @@ const gauges = new GaugeCluster(document.body);
 const timeline = new Timeline($("#timeline"), player);
 const tableView = new TableView($("#table-view"));
 const shiftPanel = new ShiftPanel($("#shift-card"), (t) => player.seek(t));
+const vehicleView = new VehicleView($("#vehicle-strip"));
 
 let datasets = [];
 let current = null;      // dataset summary
@@ -95,6 +97,11 @@ async function loadPlayback() {
   player.load(payload);
   trackMap.setData(payload, roleUnits);
   gg.setData(payload, roleUnits);
+  vehicleView.setData(payload, roleUnits);
+  // No position channels -> drop the map card instead of showing a large
+  // empty canvas; the other left-column cards absorb the space.
+  $("#map-card").classList.toggle("hidden", !trackMap.hasData);
+  $("#map-card").parentElement.classList.toggle("no-map", !trackMap.hasData);
   gauges.configure(current.columns, current.mapping);
   buildChannelBar();
   buildCharts(payload);
@@ -234,6 +241,7 @@ function updateFrame(time) {
   gauges.update(snap, time, fmtTime);
   trackMap.setCursor(time);
   gg.setCursor(time);
+  vehicleView.setCursor(time);
   sync.cursor(time);
   const readout = $("#time-readout");
   readout.textContent = "";
