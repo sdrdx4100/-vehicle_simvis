@@ -175,6 +175,74 @@ def test_upload_rejects_garbage(client):
     assert res.status_code == 422
 
 
+# ---------- shift analysis ----------
+
+def _make_shift_log(tmp_path, with_flag=True):
+    hz, dur = 50, 10.0
+    n = int(hz * dur)
+    t = np.arange(n) / hz
+    speed = np.full(n, 50.0)                      # km/h, steady
+    gear = np.full(n, 3, dtype=np.int32)
+    flag = np.zeros(n, dtype=np.int32)
+    i0, i1 = int(5.0 * hz), int(5.3 * hz)         # shift at t=5.0..5.3s
+    gear[i0:] = 4
+    flag[i0:i1] = 1
+    speed[i0:i1] -= 3.0 * np.hanning(i1 - i0)     # torque-interruption dip
+    cols = {
+        "time_s": t,
+        "SPN84_WheelBasedVehicleSpeed": speed,
+        "SPN523_TransmissionCurrentGear": gear,
+    }
+    if with_flag:
+        cols["SPN574_TransmissionShiftInProcess"] = flag
+    path = tmp_path / ("flagged.parquet" if with_flag else "flagless.parquet")
+    pq.write_table(pa.table(cols), path)
+    return path
+
+
+def test_shift_events_from_flag(tmp_path):
+    _make_shift_log(tmp_path, with_flag=True)
+    c = TestClient(create_app(tmp_path))
+    r = c.get("/api/datasets/flagged/shifts").json()
+    assert r["source"] == "shift_in_process"
+    assert r["summary"]["count"] == 1
+    ev = r["events"][0]
+    assert ev["gearFrom"] == 3 and ev["gearTo"] == 4
+    assert ev["direction"] == "up"
+    assert ev["tStart"] == pytest.approx(5.0, abs=0.05)
+    assert ev["speedOn"] == pytest.approx(50.0, abs=0.5)   # v at flag ON
+    assert ev["speedOff"] == pytest.approx(50.0, abs=0.5)  # v at flag OFF
+    assert 250 <= ev["durationMs"] <= 320
+    assert ev["peakJerk"] > 0
+    assert ev["severity"] in ("smooth", "moderate", "harsh")
+
+
+def test_shift_events_fallback_to_gear(tmp_path):
+    _make_shift_log(tmp_path, with_flag=False)
+    c = TestClient(create_app(tmp_path))
+    r = c.get("/api/datasets/flagless/shifts").json()
+    assert r["source"] == "gear"
+    assert r["summary"]["count"] == 1
+    assert r["events"][0]["gearFrom"] == 3
+    assert r["events"][0]["gearTo"] == 4
+
+
+def test_shift_flag_mapping():
+    m = detect_mapping(["shiftinprocess", "gear", "speed"], {})
+    assert m["shift_in_process"] == "shiftinprocess"
+    m2 = detect_mapping(["SPN574_TransmissionShiftInProcess"], {})
+    assert m2["shift_in_process"] == "SPN574_TransmissionShiftInProcess"
+
+
+def test_demo_has_shift_events(client):
+    r = client.get("/api/datasets/lap/shifts").json()
+    assert r["source"] == "shift_in_process"
+    assert r["summary"]["count"] >= 1
+    for ev in r["events"]:
+        assert "speedOn" in ev and "speedOff" in ev
+        assert 0 < ev["durationMs"] <= 600
+
+
 def test_unsorted_numeric_time(tmp_path):
     # Rows out of order; server must sort by time.
     t = np.array([2.0, 0.0, 1.0, 3.0])

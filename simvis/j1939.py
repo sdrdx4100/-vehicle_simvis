@@ -21,6 +21,9 @@ SPN_TABLE: dict[int, tuple[str, str, Optional[str]]] = {
     521:  ("BrakePedalPosition", "%", "brake"),               # PGN 61441 EBC1
     523:  ("TransmissionCurrentGear", "", "gear"),            # PGN 61445 ETC2
     524:  ("TransmissionSelectedGear", "", None),             # PGN 61445 ETC2
+    574:  ("TransmissionShiftInProcess", "", "shift_in_process"),  # PGN 61442 ETC1
+    161:  ("TransmissionInputShaftSpeed", "rpm", None),       # PGN 61442 ETC1
+    191:  ("TransmissionOutputShaftSpeed", "rpm", None),      # PGN 61442 ETC1
     1807: ("SteeringWheelAngle", "rad", "steering"),          # PGN 61449 VDC2
     1808: ("YawRate", "rad/s", "yaw_rate"),                   # PGN 61449 VDC2
     1809: ("LateralAcceleration", "m/s²", "accel_y"),         # PGN 61449 VDC2

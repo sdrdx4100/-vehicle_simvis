@@ -23,6 +23,12 @@ Parquet 形式の車両ログ（実車・シミュレータ・CAN ダンプな�
 - **インストルメントクラスタ** — 速度 / タコメーター（レッドゾーン付き）ゲージ、
   ギア表示、スロットル / ブレーキメーター、ステアリング表示。
 - **G-G ダイアグラム** — 横 G × 前後 G の軌跡をトレイル付きで表示。
+- **変速ショック解析** — TransmissionShiftInProcess フラグ（SPN 574）の
+  ON/OFF エッジで変速イベントを抽出し、**両エッジ時点の車速**・変速時間・
+  前後ギア・**変速ショック（区間中の前後ジャークピーク, m/s³）**を算出。
+  smooth / moderate / harsh を判定し、イベント表のクリックでその変速へシーク。
+  再生中はギア表示に SHIFT ランプ、速度チャートに変速マーカーを表示。
+  フラグの無いログではギア変化から区間を推定します。
 - **時系列チャート** — 全チャート共有のクロスヘア＋統合ツールチップ、
   ドラッグでズーム（ダブルクリックで解除）、クリックでシーク、再生カーソル表示。
   min/max バケット間引きでスパイクを保ったまま高速描画。
@@ -75,6 +81,7 @@ python -m simvis demo --data-dir data   # デモ用 parquet の生成のみ
 | 91 | AcceleratorPedalPosition1 | 61443 EEC2 | % | スロットルメーター |
 | 521 | BrakePedalPosition | 61441 EBC1 | % | ブレーキメーター |
 | 523 | TransmissionCurrentGear | 61445 ETC2 | – | ギア表示 |
+| 574 | TransmissionShiftInProcess | 61442 ETC1 | – | 変速ショック解析 / SHIFT ランプ |
 | 1807 | SteeringWheelAngle | 61449 VDC2 | rad | ステアリング（deg に変換表示） |
 | 1808 | YawRate | 61449 VDC2 | rad/s | ヨーレートチャート |
 | 1809 / 1810 | Lateral / LongitudinalAcceleration | 61449 VDC2 | m/s² | G-G ダイアグラム（G に変換） |
@@ -98,6 +105,7 @@ python -m simvis demo --data-dir data   # デモ用 parquet の生成のみ
 | GET | `/api/datasets/{id}` | メタデータ |
 | GET | `/api/datasets/{id}/playback?extra=col1,col2` | 再生用の時刻整列チャンネル配列 |
 | GET | `/api/datasets/{id}/signals?columns=…&t0=&t1=&points=` | min/max ダウンサンプル時系列 |
+| GET | `/api/datasets/{id}/shifts` | 変速イベント抽出＋ショック解析 |
 | GET | `/api/datasets/{id}/table?offset=&limit=` | 生データ行 |
 
 ## アーキテクチャ
@@ -107,6 +115,7 @@ simvis/                Python バックエンド (FastAPI + pyarrow + numpy)
   mapping.py           列名 → チャンネル役割の自動判別
   datasets.py          Parquet 読み込み・時刻正規化・ダウンサンプリング
   sample_data.py       物理ベースの合成テレメトリ生成（グリップ限界の速度プロファイル等）
+  shifts.py            変速イベント抽出・変速ショック（ジャーク）解析
   server.py            REST API + 静的配信
 web/                   フロントエンド (依存ライブラリなしの ES Modules + Canvas)
   js/player.js         再生エンジン（時刻カーソル・チャンネル補間）

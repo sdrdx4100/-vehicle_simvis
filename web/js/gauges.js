@@ -87,6 +87,7 @@ export class GaugeCluster {
       fmt: (v) => `${(v / 1000).toFixed(1)}k`,
     });
     this.gearValue = root.querySelector("#gear-value");
+    this.shiftLamp = root.querySelector("#shift-lamp");
     this.timeValue = root.querySelector("#lap-time");
     this.throttleFill = root.querySelector(".meter.throttle .fillbar");
     this.throttleVal = root.querySelector(".meter.throttle b");
@@ -117,6 +118,7 @@ export class GaugeCluster {
     this.speedGauge.set(snap.speed ?? null);
     this.rpmGauge.set(snap.rpm ?? null);
     this.gearValue.textContent = snap.gear == null ? "–" : `${Math.round(snap.gear)}`;
+    this.shiftLamp.hidden = !(snap.shift_in_process > 0.5);
     this.timeValue.textContent = fmtTime(cursorTime);
 
     const thr = snap.throttle;

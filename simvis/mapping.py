@@ -35,6 +35,11 @@ ROLE_PATTERNS: dict[str, list[str]] = {
         r"^vel",
     ],
     "rpm": [r"^(rpm|engine_rpm|engine_speed|n_engine|eng_rpm|ne)$", r"rpm"],
+    # Before `gear`: its generic "gear" pattern would swallow names like
+    # gear_shift_in_process.
+    "shift_in_process": [
+        r"^(shift_in_process|shiftinprocess|shift_in_progress|shifting|shift_flag|gear_shift_in_process|transmission_shift_in_process)$",
+    ],
     "gear": [
         r"^(gear|gear_pos|current_gear|gear_position|shift)$",
         r"^transmission_(current|selected)_gear$",  # J1939 SPN 523 / 524
@@ -85,6 +90,7 @@ ROLE_UNITS: dict[str, str] = {
     "y": "m",
     "time": "s",
     "gear": "",
+    "shift_in_process": "",
 }
 
 _UNIT_SUFFIX = re.compile(

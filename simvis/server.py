@@ -12,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from . import __version__
 from .datasets import DatasetManager
 from .sample_data import generate_all
+from .shifts import analyze as analyze_shifts
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
@@ -78,6 +79,10 @@ def create_app(data_dir: str | Path | None = None) -> FastAPI:
     ):
         cols = [c for c in columns.split(",") if c]
         return _dataset(ds_id).downsampled(cols, t0, t1, points)
+
+    @app.get("/api/datasets/{ds_id}/shifts")
+    def shifts(ds_id: str):
+        return analyze_shifts(_dataset(ds_id))
 
     @app.get("/api/datasets/{ds_id}/table")
     def table(ds_id: str, offset: int = 0, limit: int = 100):

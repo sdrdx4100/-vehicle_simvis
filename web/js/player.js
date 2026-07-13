@@ -3,7 +3,7 @@
 
 import { Emitter, bisect } from "./util.js";
 
-const STEP_KEYS = new Set(["gear"]); // integer channels: hold, don't interpolate
+const STEP_KEYS = new Set(["gear", "shift_in_process"]); // integer/flag channels: hold, don't interpolate
 
 export class Player extends Emitter {
   constructor() {

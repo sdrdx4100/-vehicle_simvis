@@ -330,3 +330,43 @@ canvas.fill { flex: 1; min-height: 0; width: 100%; touch-action: none; }
   #dashboard { grid-template-columns: 1fr; }
   body { overflow: auto; }
 }
+
+/* ---------------- shift analysis ---------------- */
+
+#shift-card { min-height: 160px; max-height: 320px; }
+#shift-summary {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  font-size: 12px; color: var(--text-secondary);
+  padding: 4px 0 6px;
+}
+#shift-summary b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+
+#shift-table-wrap { flex: 1; overflow-y: auto; min-height: 0; }
+#shift-table-wrap table { border-collapse: collapse; width: 100%; font-size: 12px; }
+#shift-table-wrap th, #shift-table-wrap td {
+  padding: 3px 8px; text-align: right; white-space: nowrap;
+  border-bottom: 1px solid var(--grid);
+  font-variant-numeric: tabular-nums;
+}
+#shift-table-wrap th {
+  position: sticky; top: 0; background: var(--surface-1);
+  color: var(--text-muted); font-weight: 600; z-index: 1;
+}
+#shift-table-wrap tbody tr { cursor: pointer; }
+#shift-table-wrap tbody tr:hover { background: var(--ghost); }
+
+.sev {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--text-secondary);
+}
+.sev i { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.sev.smooth i { background: #0ca30c; }
+.sev.moderate i { background: #fab219; }
+.sev.harsh i { background: #d03b3b; }
+
+#shift-lamp {
+  display: inline-block; margin-left: 6px; padding: 0 6px;
+  border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  background: var(--series-3); color: #0b0b0b;
+  vertical-align: 1px;
+}

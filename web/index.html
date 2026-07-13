@@ -41,6 +41,11 @@
           <h2>G-G diagram <span class="sub">lateral vs longitudinal acceleration</span></h2>
           <canvas class="fill" id="gg-canvas"></canvas>
         </div>
+        <div class="card" id="shift-card">
+          <h2>Shift analysis <span class="sub" id="shift-sub"></span></h2>
+          <div id="shift-summary"></div>
+          <div id="shift-table-wrap"></div>
+        </div>
       </div>
 
       <div class="col">
@@ -50,7 +55,7 @@
             <div class="gauge-box"><canvas id="gauge-rpm" height="130"></canvas></div>
             <div class="tile-stack">
               <div class="tile">
-                <div class="label">Gear</div>
+                <div class="label">Gear <span id="shift-lamp" hidden>SHIFT</span></div>
                 <div class="value" id="gear-value">–</div>
               </div>
               <div class="tile">

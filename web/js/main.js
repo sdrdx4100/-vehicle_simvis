@@ -9,6 +9,7 @@ import { GaugeCluster } from "./gauges.js";
 import { ChartSync, TimeChart } from "./charts.js";
 import { Timeline } from "./timeline.js";
 import { TableView } from "./table.js";
+import { ShiftPanel } from "./shiftpanel.js";
 import { el, fmtTime, ROLE_COLORS, ROLE_LABELS } from "./util.js";
 
 const $ = (sel) => document.querySelector(sel);
@@ -21,6 +22,7 @@ const gg = new GGDiagram($("#gg-canvas"));
 const gauges = new GaugeCluster(document.body);
 const timeline = new Timeline($("#timeline"), player);
 const tableView = new TableView($("#table-view"));
+const shiftPanel = new ShiftPanel($("#shift-card"), (t) => player.seek(t));
 
 let datasets = [];
 let current = null;      // dataset summary
@@ -98,6 +100,18 @@ async function loadPlayback() {
   buildCharts(payload);
   sync.setWindow(null);
   updateFrame(0);
+  loadShifts();
+}
+
+async function loadShifts() {
+  try {
+    const data = await api.shifts(current.id);
+    shiftPanel.render(data);
+    const times = (data.events || []).map((e) => e.tStart);
+    charts[0]?.setMarkers(times); // ticks on the speed chart (first card)
+  } catch (err) {
+    shiftPanel.render({ events: [], note: `Shift analysis failed: ${err.message}` });
+  }
 }
 
 // ---------------- charts ----------------

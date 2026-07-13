@@ -48,6 +48,7 @@ export class TimeChart {
     this.cursorT = 0;
     this.sync = null;
     this._drag = null;
+    this.markers = []; // event times flagged along the top of the plot
 
     new ResizeObserver(() => this.draw()).observe(canvas);
     canvas.addEventListener("pointerdown", (e) => this.#down(e));
@@ -60,6 +61,11 @@ export class TimeChart {
   setData(t) {
     this.t = t;
     this.#computeDomain();
+    this.draw();
+  }
+
+  setMarkers(times) {
+    this.markers = times || [];
     this.draw();
   }
 
@@ -249,6 +255,21 @@ export class TimeChart {
       ctx.stroke();
     }
     ctx.restore();
+
+    // Event markers (e.g. gearshifts): small ticks along the top edge.
+    if (this.markers.length) {
+      ctx.fillStyle = cssVar("--text-muted");
+      for (const mt of this.markers) {
+        if (mt < t0 || mt > t1) continue;
+        const px = toPx(mt);
+        ctx.beginPath();
+        ctx.moveTo(px - 3, M.top);
+        ctx.lineTo(px + 3, M.top);
+        ctx.lineTo(px, M.top + 6);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
 
     // Zoom selection overlay
     if (this._drag?.moved && this._dragEnd != null) {

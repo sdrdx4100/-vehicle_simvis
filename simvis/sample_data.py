@@ -27,11 +27,22 @@ DS = 5.0  # station spacing along the track centerline, meters
 
 
 def _smooth(x: np.ndarray, window: int) -> np.ndarray:
+    """Circular smoothing — for closed-loop (track station) arrays only."""
     window = max(3, window | 1)
     kernel = np.hanning(window)
     kernel /= kernel.sum()
     pad = window
     xp = np.concatenate([x[-pad:], x, x[:pad]])
+    return np.convolve(xp, kernel, mode="same")[pad:-pad]
+
+
+def _smooth_series(x: np.ndarray, window: int) -> np.ndarray:
+    """Edge-replicating smoothing for time series (ends are not adjacent)."""
+    window = max(3, window | 1)
+    kernel = np.hanning(window)
+    kernel /= kernel.sum()
+    pad = window
+    xp = np.concatenate([np.full(pad, x[0]), x, np.full(pad, x[-1])])
     return np.convolve(xp, kernel, mode="same")[pad:-pad]
 
 
@@ -131,19 +142,14 @@ def generate_lap(
 
     si = pos % m
     speed = np.interp(si, stations, v_track)
+    # The bang-bang accel/brake profile has step accelerations; real cars
+    # have finite jerk. Smooth ~0.4s so shift shock stands out from the
+    # baseline instead of drowning in corner-entry transients.
+    speed = _smooth_series(speed, max(3, round(0.4 * hz)))
     kappa = np.interp(si, stations, kappa_track)
     x = np.interp(si, stations, x_track)
     y = np.interp(si, stations, y_track)
     yaw = np.interp(si, stations, yaw_track)
-
-    # Driver / powertrain channels (J1939 SLOT units)
-    accel_long = np.gradient(speed, dt)          # m/s²  (SPN 1810)
-    accel_lat = kappa * speed**2                 # m/s²  (SPN 1809)
-    yaw_rate = kappa * speed                     # rad/s (SPN 1808)
-    throttle = np.clip(accel_long / G * 55 + 24 + rng.normal(0, 1.5, n), 0, 100)
-    brake = np.clip(-accel_long / G * 58 - 4 + rng.normal(0, 1.0, n), 0, 100)
-    throttle[brake > 5] = 0.0
-    steering = np.arctan(kappa * 2.7) * 14       # rad   (SPN 1807): wheelbase * steer ratio
 
     wheel_rps = speed / (2 * np.pi * WHEEL_RADIUS)
     gear = np.ones(n, dtype=np.int32)
@@ -157,6 +163,34 @@ def generate_lap(
         gear[i] = cur
         rpm[i] = max(950.0, wheel_rps[i] * GEAR_RATIOS[cur - 1] * FINAL_DRIVE * 60)
     rpm += rng.normal(0, 25, n)
+
+    # Gearshift windows: ShiftInProcess flag (SPN 574) turns on at each gear
+    # transition; during the window torque is interrupted (speed dips, then
+    # re-engages with a jolt) and rpm blends between the two ratios. Lower
+    # gears carry more torque, so their engagement shock is bigger.
+    shift_flag = np.zeros(n, dtype=np.int32)
+    for i in np.flatnonzero(np.diff(gear) != 0) + 1:
+        if shift_flag[i]:  # overlapping multi-shift: keep the open window
+            continue
+        upshift = gear[i] > gear[i - 1]
+        dur_s = rng.uniform(0.22, 0.38) if upshift else rng.uniform(0.30, 0.50)
+        w = max(3, round(dur_s * hz))
+        j = min(n, i + w)
+        shift_flag[i:j] = 1
+        window = np.hanning(2 * (j - i))[j - i:]  # 1 -> 0 over the window
+        dip = rng.uniform(0.03, 0.15) / gear[i]   # m/s torque-interruption dip
+        speed[i:j] -= dip * np.hanning(j - i)
+        rpm[i:j] = rpm[max(0, i - 1)] * window + rpm[min(n - 1, j)] * (1 - window)
+
+    # Driver / powertrain channels (J1939 SLOT units)
+    accel_long = np.gradient(speed, dt)          # m/s²  (SPN 1810)
+    accel_lat = kappa * speed**2                 # m/s²  (SPN 1809)
+    yaw_rate = kappa * speed                     # rad/s (SPN 1808)
+    throttle = np.clip(accel_long / G * 55 + 24 + rng.normal(0, 1.5, n), 0, 100)
+    brake = np.clip(-accel_long / G * 58 - 4 + rng.normal(0, 1.0, n), 0, 100)
+    throttle[brake > 5] = 0.0
+    throttle[shift_flag == 1] *= 0.15            # torque cut while shifting
+    steering = np.arctan(kappa * 2.7) * 14       # rad   (SPN 1807): wheelbase * steer ratio
 
     # GPS from local XY (equirectangular around origin)
     lat0, lon0 = origin
@@ -176,6 +210,7 @@ def generate_lap(
             column_name(84): np.minimum(speed * 3.6, SPEED_MAX_KMH).astype(np.float32),
             column_name(190): rpm.astype(np.float32),
             column_name(523): gear,
+            column_name(574): shift_flag,
             column_name(91): throttle.astype(np.float32),
             column_name(521): brake.astype(np.float32),
             column_name(1807): steering.astype(np.float32),

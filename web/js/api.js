@@ -15,6 +15,7 @@ export const api = {
   meta: (id) => getJSON(`/api/datasets/${encodeURIComponent(id)}`),
   playback: (id, extra = []) =>
     getJSON(`/api/datasets/${encodeURIComponent(id)}/playback?extra=${encodeURIComponent(extra.join(","))}`),
+  shifts: (id) => getJSON(`/api/datasets/${encodeURIComponent(id)}/shifts`),
   table: (id, offset, limit) =>
     getJSON(`/api/datasets/${encodeURIComponent(id)}/table?offset=${offset}&limit=${limit}`),
   makeDemo: async () => {
