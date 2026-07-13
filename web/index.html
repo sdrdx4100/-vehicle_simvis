@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>simvis — vehicle data playback</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏎️</text></svg>" />
+  <link rel="stylesheet" href="/static/css/app.css" />
+</head>
+<body>
+  <header>
+    <div class="logo">sim<span>vis</span></div>
+    <select id="dataset-select" aria-label="Dataset"></select>
+    <span class="meta" id="dataset-meta"></span>
+    <div class="spacer"></div>
+    <button id="upload-btn" title="Upload a parquet log">Upload .parquet</button>
+    <input type="file" id="upload-input" accept=".parquet" class="hidden" />
+    <button id="demo-btn" title="Generate synthetic demo logs">Demo data</button>
+    <div class="seg" role="group" aria-label="View">
+      <button id="view-dash" aria-pressed="true">Dashboard</button>
+      <button id="view-table" aria-pressed="false">Data</button>
+    </div>
+    <button id="theme-btn" title="Toggle light/dark theme" aria-label="Toggle theme">◐</button>
+  </header>
+
+  <main>
+    <div id="empty-state" class="hidden">
+      <h1>No datasets yet</h1>
+      <p>Drop a <b>.parquet</b> vehicle log here, upload one, or generate demo telemetry.<br/>
+         Channels (time, GPS, speed, rpm, pedals…) are detected automatically from column names.</p>
+      <button class="primary" id="empty-demo-btn">Generate demo data</button>
+    </div>
+
+    <div id="dashboard">
+      <div class="col">
+        <div class="card" id="map-card">
+          <h2>Track map <span class="sub" id="map-sub">position colored by speed</span></h2>
+          <canvas class="fill" id="map-canvas"></canvas>
+        </div>
+        <div class="card" id="gg-card">
+          <h2>G-G diagram <span class="sub">lateral vs longitudinal acceleration</span></h2>
+          <canvas class="fill" id="gg-canvas"></canvas>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="card">
+          <div id="gauges">
+            <div class="gauge-box"><canvas id="gauge-speed" height="130"></canvas></div>
+            <div class="gauge-box"><canvas id="gauge-rpm" height="130"></canvas></div>
+            <div class="tile-stack">
+              <div class="tile">
+                <div class="label">Gear</div>
+                <div class="value" id="gear-value">–</div>
+              </div>
+              <div class="tile">
+                <div class="label">Elapsed</div>
+                <div class="value" id="lap-time" style="font-size:19px">0:00.0</div>
+              </div>
+            </div>
+          </div>
+          <div class="meter throttle">
+            <div class="label-row"><span>Throttle</span><b>–</b></div>
+            <div class="track"><div class="fillbar"></div></div>
+          </div>
+          <div class="meter brake">
+            <div class="label-row"><span>Brake</span><b>–</b></div>
+            <div class="track"><div class="fillbar"></div></div>
+          </div>
+          <div id="steer-wrap">
+            <svg id="steer-icon" width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+              <circle cx="17" cy="17" r="14" fill="none" stroke="currentColor" stroke-width="3"/>
+              <circle cx="17" cy="17" r="4" fill="currentColor"/>
+              <line x1="4"  y1="17" x2="13" y2="17" stroke="currentColor" stroke-width="3"/>
+              <line x1="21" y1="17" x2="30" y2="17" stroke="currentColor" stroke-width="3"/>
+              <line x1="17" y1="21" x2="17" y2="30" stroke="currentColor" stroke-width="3"/>
+            </svg>
+            <span id="steer-val">–</span>
+            <span class="meta" style="color:var(--text-muted);font-size:11px">steering</span>
+          </div>
+        </div>
+
+        <div id="channel-bar" aria-label="Extra channels"></div>
+        <div id="charts"></div>
+      </div>
+    </div>
+
+    <div id="table-view">
+      <div class="controls">
+        <button id="table-prev">← Prev</button>
+        <button id="table-next">Next →</button>
+        <span id="table-info"></span>
+      </div>
+      <div id="table-scroll"></div>
+    </div>
+  </main>
+
+  <div id="transport">
+    <button class="tbtn" id="back-btn" title="Back 10s (←)">⏮</button>
+    <button class="tbtn" id="play-btn" title="Play / pause (space)" aria-label="Play">▶</button>
+    <button class="tbtn" id="fwd-btn" title="Forward 10s (→)">⏭</button>
+    <select id="rate-select" aria-label="Playback speed">
+      <option value="0.25">0.25×</option>
+      <option value="0.5">0.5×</option>
+      <option value="1" selected>1×</option>
+      <option value="2">2×</option>
+      <option value="4">4×</option>
+      <option value="8">8×</option>
+    </select>
+    <button id="loop-btn" title="Loop" aria-pressed="true">⟲ loop</button>
+    <div id="timeline"><canvas></canvas></div>
+    <div id="time-readout"><b>0:00.0</b> / 0:00.0</div>
+  </div>
+
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>
