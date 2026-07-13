@@ -25,28 +25,40 @@ export const TRUCK_SVG = `
         stroke="var(--grid)" stroke-width="3" stroke-dasharray="16 18"/>
   <g id="vv-truck" transform="translate(52 0)">
     <g class="vv-smoke" fill="var(--text-muted)">
-      <circle cx="113" cy="10" r="3" opacity=".36"/>
-      <circle cx="108" cy="5" r="2.2" opacity=".22"/>
+      <circle cx="114" cy="10" r="3" opacity=".36"/>
+      <circle cx="109" cy="5" r="2.2" opacity=".22"/>
     </g>
     <g id="vv-body">
-      <!-- exhaust stack -->
-      <rect x="112" y="14" width="5" height="22" rx="2" fill="var(--text-muted)"/>
+      <!-- exhaust stack behind the cab -->
+      <rect x="113" y="15" width="5" height="21" rx="2" fill="var(--text-muted)"/>
       <!-- cargo box -->
-      <rect x="8" y="18" width="102" height="40" rx="8"
+      <rect x="8" y="14" width="104" height="44" rx="6"
             fill="url(#vv-box-gradient)" stroke="var(--series-1)" stroke-width="1.5"/>
-      <text x="59" y="42" text-anchor="middle" fill="var(--text-primary)"
+      <text x="60" y="40" text-anchor="middle" fill="var(--text-primary)"
             font-family="system-ui, sans-serif" font-size="10" font-weight="700" letter-spacing="1.5">SIMVIS</text>
       <!-- chassis -->
-      <rect x="8" y="56" width="164" height="7" rx="2" fill="var(--text-secondary)"/>
-      <!-- cab -->
-      <path d="M118 62 V32 q0 -4 4 -4 h28 q4 0 6 3 l12 18 q2 3 2 6 v7 z" fill="var(--series-1)"/>
-      <!-- windshield -->
-      <path d="M140 33 h9 q2 0 3.4 1.8 L162 48 h-22 z" fill="var(--seq-150)"/>
-      <path d="M123 34 h13 v23 h-13" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1"/>
-      <rect x="129" y="45" width="4" height="1.5" rx=".7" fill="rgba(255,255,255,.7)"/>
+      <rect x="8" y="56" width="160" height="7" rx="2" fill="var(--text-secondary)"/>
+      <!-- fuel tank -->
+      <rect x="86" y="63" width="26" height="8" rx="4" fill="var(--text-muted)"/>
+      <!-- cab-over cab: flat vertical front, high roof -->
+      <path d="M120 62 V20 q0 -3 3 -3 h41 q4 0 4 4 v41 z" fill="var(--series-1)"/>
+      <!-- roof air deflector (rises toward the box) -->
+      <path d="M123 17 L127 9.5 q1 -1.7 3 -1.7 h21 L164 17 z" fill="var(--series-1)" opacity=".85"/>
+      <!-- windshield: thin raked sliver on the flat front -->
+      <path d="M168 21 v21 l-4.5 2 V22.5 z" fill="var(--seq-150)"/>
+      <!-- side window -->
+      <path d="M141 22 h18 q3 0 3 3 v14 h-21 z" fill="var(--seq-150)"/>
+      <!-- door seam + handle -->
+      <line x1="138.5" y1="22" x2="138.5" y2="58" stroke="rgba(255,255,255,.35)" stroke-width="1"/>
+      <rect x="142" y="44" width="6" height="2" rx="1" fill="rgba(255,255,255,.7)"/>
+      <!-- mirror on a forward arm -->
+      <path d="M166 22 l9 -2.5" stroke="var(--text-secondary)" stroke-width="1.5" fill="none"/>
+      <rect x="173.5" y="19" width="3.5" height="11" rx="1.5" fill="var(--text-secondary)"/>
+      <!-- cab entry step -->
+      <rect x="141" y="60" width="13" height="3" rx="1" fill="var(--text-secondary)"/>
       <!-- bumper + headlight -->
-      <rect x="164" y="58" width="8" height="9" rx="2" fill="var(--text-secondary)"/>
-      <circle cx="168" cy="52" r="2.4" fill="var(--series-3)"/>
+      <rect x="161" y="58" width="10" height="9" rx="2" fill="var(--text-secondary)"/>
+      <circle cx="166.5" cy="54" r="2.2" fill="var(--series-3)"/>
     </g>
     <g class="vv-wheel" data-cx="34">
       <circle cx="34" cy="69" r="11.5" fill="var(--text-primary)"/>
@@ -64,12 +76,12 @@ export const TRUCK_SVG = `
         <line x1="56.6" y1="69" x2="67.4" y2="69" stroke="var(--text-primary)" stroke-width="2"/>
       </g>
     </g>
-    <g class="vv-wheel" data-cx="146">
-      <circle cx="146" cy="69" r="11.5" fill="var(--text-primary)"/>
-      <circle cx="146" cy="69" r="6" fill="var(--surface-1)"/>
+    <g class="vv-wheel" data-cx="144">
+      <circle cx="144" cy="69" r="11.5" fill="var(--text-primary)"/>
+      <circle cx="144" cy="69" r="6" fill="var(--surface-1)"/>
       <g class="vv-spokes">
-        <line x1="146" y1="63.6" x2="146" y2="74.4" stroke="var(--text-primary)" stroke-width="2"/>
-        <line x1="140.6" y1="69" x2="151.4" y2="69" stroke="var(--text-primary)" stroke-width="2"/>
+        <line x1="144" y1="63.6" x2="144" y2="74.4" stroke="var(--text-primary)" stroke-width="2"/>
+        <line x1="138.6" y1="69" x2="149.4" y2="69" stroke="var(--text-primary)" stroke-width="2"/>
       </g>
     </g>
   </g>
@@ -120,7 +132,9 @@ export class VehicleView {
     for (const w of this.wheels) {
       w.spokes.setAttribute("transform", `rotate(${wheelDeg} ${w.cx} 69)`);
     }
-    this.dashes.setAttribute("stroke-dashoffset", `${-((d * DASH_PX_PER_M) % DASH_PERIOD)}`);
+    // Positive dashoffset shifts the pattern toward the path start (left),
+    // which is how the road must flow under a truck driving to the right.
+    this.dashes.setAttribute("stroke-dashoffset", `${(d * DASH_PX_PER_M) % DASH_PERIOD}`);
 
     let pitch = 0;
     if (this.accel && this.accel[i] != null) {
