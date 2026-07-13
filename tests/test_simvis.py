@@ -4,6 +4,7 @@ import pyarrow.parquet as pq
 import pytest
 from fastapi.testclient import TestClient
 
+from simvis.j1939 import SPEED_MAX_KMH, column_name
 from simvis.mapping import detect_mapping, guess_unit
 from simvis.sample_data import generate_lap
 from simvis.server import create_app
@@ -39,6 +40,73 @@ def test_guess_unit():
     assert guess_unit("velocity", "speed") == "km/h"
 
 
+# ---------- J1939 ----------
+
+def test_detect_mapping_j1939_spn_names():
+    cols = [
+        "timestamp",
+        "SPN84_WheelBasedVehicleSpeed",
+        "SPN190_EngineSpeed",
+        "SPN523_TransmissionCurrentGear",
+        "SPN91_AcceleratorPedalPosition1",
+        "SPN521_BrakePedalPosition",
+        "SPN1807_SteeringWheelAngle",
+        "SPN1810_LongitudinalAcceleration",
+        "SPN1809_LateralAcceleration",
+        "SPN1808_YawRate",
+        "SPN165_CompassBearing",
+        "SPN584_Latitude",
+        "SPN585_Longitude",
+        "SPN110_EngineCoolantTemperature",
+    ]
+    m = detect_mapping(cols, {"timestamp": "timestamp[us]"})
+    assert m["speed"] == "SPN84_WheelBasedVehicleSpeed"
+    assert m["rpm"] == "SPN190_EngineSpeed"
+    assert m["gear"] == "SPN523_TransmissionCurrentGear"
+    assert m["throttle"] == "SPN91_AcceleratorPedalPosition1"
+    assert m["brake"] == "SPN521_BrakePedalPosition"
+    assert m["steering"] == "SPN1807_SteeringWheelAngle"
+    assert m["accel_x"] == "SPN1810_LongitudinalAcceleration"
+    assert m["accel_y"] == "SPN1809_LateralAcceleration"
+    assert m["yaw_rate"] == "SPN1808_YawRate"
+    assert m["bearing"] == "SPN165_CompassBearing"
+    assert m["lat"] == "SPN584_Latitude"
+    assert m["lon"] == "SPN585_Longitude"
+    # SPN 110 has no dashboard role — stays an extra channel
+    assert "SPN110_EngineCoolantTemperature" not in m.values()
+
+
+def test_detect_mapping_spn_numbers_only():
+    m = detect_mapping(["spn_84", "spn190", "SPN_1807"], {})
+    assert m["speed"] == "spn_84"
+    assert m["rpm"] == "spn190"
+    assert m["steering"] == "SPN_1807"
+
+
+def test_detect_mapping_j1939_signal_names_without_spn():
+    cols = ["WheelBasedVehicleSpeed", "AcceleratorPedalPosition1", "CompassBearing"]
+    m = detect_mapping(cols, {})
+    assert m["speed"] == "WheelBasedVehicleSpeed"
+    assert m["throttle"] == "AcceleratorPedalPosition1"
+    assert m["bearing"] == "CompassBearing"
+
+
+def test_j1939_units():
+    assert guess_unit("SPN1807_SteeringWheelAngle", "steering") == "rad"
+    assert guess_unit("SPN1809_LateralAcceleration", "accel_y") == "m/s²"
+    assert guess_unit("SPN84_WheelBasedVehicleSpeed", "speed") == "km/h"
+    assert guess_unit("SPN110_EngineCoolantTemperature", None) == "°C"
+
+
+def test_demo_speed_within_j1939_slot_range(tmp_path):
+    path = generate_lap(tmp_path / "lap.parquet", seed=5, duration_s=30, hz=10)
+    t = pq.read_table(path)
+    speed = t[column_name(84)].to_numpy()
+    assert float(speed.max()) <= SPEED_MAX_KMH
+    bearing = t[column_name(165)].to_numpy()
+    assert 0.0 <= float(bearing.min()) and float(bearing.max()) < 360.0
+
+
 # ---------- API ----------
 
 @pytest.fixture()
@@ -53,7 +121,7 @@ def test_list_and_meta(client):
     ds = data["datasets"][0]
     assert ds["id"] == "lap"
     assert ds["rows"] == 200
-    assert ds["mapping"]["speed"] == "speed_kmh"
+    assert ds["mapping"]["speed"] == column_name(84)
     assert 19 < ds["duration"] <= 20
 
 
@@ -67,11 +135,12 @@ def test_playback_payload(client):
 
 
 def test_signals_downsampling(client):
+    col = column_name(84)
     s = client.get("/api/datasets/lap/signals",
-                   params={"columns": "speed_kmh", "points": 20}).json()
+                   params={"columns": col, "points": 20}).json()
     assert s["downsampled"] is True
     assert len(s["t"]) <= 42
-    assert len(s["series"]["speed_kmh"]) == len(s["t"])
+    assert len(s["series"][col]) == len(s["t"])
 
 
 def test_table(client):

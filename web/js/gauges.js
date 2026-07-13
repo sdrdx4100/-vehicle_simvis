@@ -104,6 +104,8 @@ export class GaugeCluster {
     const rpmMeta = colMeta("rpm");
     const rpmMax = rpmMeta?.max ?? 8000;
     this.rpmGauge.setMax(Math.ceil(rpmMax / 500) * 500);
+    // J1939 SPN 1807 is radians; display in degrees either way.
+    this.steerScale = colMeta("steering")?.unit === "rad" ? 180 / Math.PI : 1;
     this.available = {
       speed: !!speedMeta, rpm: !!rpmMeta,
       gear: !!colMeta("gear"), throttle: !!colMeta("throttle"),
@@ -124,7 +126,7 @@ export class GaugeCluster {
     this.brakeFill.style.width = `${Math.max(0, Math.min(100, brk ?? 0))}%`;
     this.brakeVal.textContent = brk == null ? "–" : `${Math.round(brk)}%`;
 
-    const steer = snap.steering;
+    const steer = snap.steering == null ? null : snap.steering * (this.steerScale ?? 1);
     this.steerIcon.style.transform = `rotate(${steer ?? 0}deg)`;
     this.steerVal.textContent = steer == null ? "–" : `${steer.toFixed(0)}°`;
   }

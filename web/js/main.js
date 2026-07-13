@@ -86,9 +86,13 @@ async function selectDataset(id) {
 
 async function loadPlayback() {
   const payload = await api.playback(current.id, extraChannels);
+  const roleUnits = {};
+  for (const [role, col] of Object.entries(current.mapping)) {
+    roleUnits[role] = current.columns.find((c) => c.name === col)?.unit || "";
+  }
   player.load(payload);
-  trackMap.setData(payload);
-  gg.setData(payload);
+  trackMap.setData(payload, roleUnits);
+  gg.setData(payload, roleUnits);
   gauges.configure(current.columns, current.mapping);
   buildChannelBar();
   buildCharts(payload);
@@ -104,6 +108,7 @@ const CHART_GROUPS = [
   { roles: ["throttle", "brake"], unit: "%", title: "Pedals" },
   { roles: ["steering"], unit: "deg", symmetric: true },
   { roles: ["accel_x", "accel_y"], unit: "G", title: "Acceleration", symmetric: true },
+  { roles: ["yaw_rate"], unit: "", symmetric: true },
   { roles: ["gear"], unit: "", step: true },
 ];
 

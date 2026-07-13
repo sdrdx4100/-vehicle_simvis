@@ -1,7 +1,7 @@
 // Track map: trajectory from GPS (or local x/y), colored by speed using
 // the sequential blue ramp, with a heading-aware vehicle marker.
 
-import { cssVar, fitCanvas, fmtNum, bisect } from "./util.js";
+import { cssVar, fitCanvas, fmtNum, bisect, toRad } from "./util.js";
 
 const RAMP = ["--seq-150", "--seq-250", "--seq-350", "--seq-450", "--seq-550", "--seq-650"];
 
@@ -28,11 +28,13 @@ export class TrackMap {
     });
   }
 
-  setData(payload) {
+  setData(payload, units = {}) {
     const s = payload.series;
     this.t = payload.t;
+    this.units = units;
     this.speed = s.speed || null;
-    this.yaw = s.yaw || null;
+    this.yaw = s.yaw || null;           // CCW from east (math convention)
+    this.bearing = s.bearing || null;   // CW from north (compass, e.g. J1939 SPN 165)
     if (s.lat && s.lon) {
       // Equirectangular projection around the mid-latitude.
       const lat = s.lat, lon = s.lon;
@@ -191,7 +193,9 @@ export class TrackMap {
       const vx = p.x(this.xs[i]), vy = p.y(this.ys[i]);
       let heading = null;
       if (this.yaw && this.yaw[i] != null) {
-        heading = (this.yaw[i] * Math.PI) / 180;
+        heading = toRad(this.yaw[i], this.units.yaw);
+      } else if (this.bearing && this.bearing[i] != null) {
+        heading = Math.PI / 2 - toRad(this.bearing[i], this.units.bearing);
       } else if (i + 1 < this.xs.length && this.xs[i + 1] != null) {
         heading = Math.atan2(this.ys[i + 1] - this.ys[i], this.xs[i + 1] - this.xs[i]);
       }

@@ -2,9 +2,11 @@
 
 Produces physically plausible circuit-lap telemetry: a closed track built
 from straight + corner segments, a speed profile driven by lateral-grip
-limits with accel/braking passes, and engine/driver channels (rpm, gear,
-throttle, brake, steering) derived from that motion. Output is a plain
-parquet file — exactly what a real logger would hand the platform.
+limits with accel/braking passes, and engine/driver channels derived from
+that motion. Channels are named and scaled per SAE J1939: SPN-prefixed
+signal names with SLOT engineering units (km/h, rpm, %, rad, m/s², compass
+bearing in degrees CW from north) — exactly what a J1939 CAN logger export
+would hand the platform.
 """
 
 from __future__ import annotations
@@ -14,6 +16,8 @@ from pathlib import Path
 import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
+
+from .j1939 import SPEED_MAX_KMH, column_name
 
 G = 9.80665
 GEAR_RATIOS = [3.6, 2.4, 1.8, 1.4, 1.15, 0.95]
@@ -94,7 +98,7 @@ def generate_lap(
     hz: float = 25.0,
     track_len_m: float = 5400.0,
     origin: tuple[float, float] = (34.8431, 136.5410),  # Suzuka-ish
-    v_max_kmh: float = 265.0,
+    v_max_kmh: float = 250.0,  # stays inside the SPN 84 SLOT range
     grip_g: float = 1.55,
     corner_radius: tuple[float, float] = (28.0, 320.0),
 ) -> Path:
@@ -132,13 +136,14 @@ def generate_lap(
     y = np.interp(si, stations, y_track)
     yaw = np.interp(si, stations, yaw_track)
 
-    # Driver / powertrain channels
-    accel_long = np.gradient(speed, dt) / G
-    accel_lat = kappa * speed**2 / G
-    throttle = np.clip(accel_long * 55 + 24 + rng.normal(0, 1.5, n), 0, 100)
-    brake = np.clip(-accel_long * 58 - 4 + rng.normal(0, 1.0, n), 0, 100)
+    # Driver / powertrain channels (J1939 SLOT units)
+    accel_long = np.gradient(speed, dt)          # m/s²  (SPN 1810)
+    accel_lat = kappa * speed**2                 # m/s²  (SPN 1809)
+    yaw_rate = kappa * speed                     # rad/s (SPN 1808)
+    throttle = np.clip(accel_long / G * 55 + 24 + rng.normal(0, 1.5, n), 0, 100)
+    brake = np.clip(-accel_long / G * 58 - 4 + rng.normal(0, 1.0, n), 0, 100)
     throttle[brake > 5] = 0.0
-    steering = np.degrees(np.arctan(kappa * 2.7)) * 14  # wheelbase * steer ratio
+    steering = np.arctan(kappa * 2.7) * 14       # rad   (SPN 1807): wheelbase * steer ratio
 
     wheel_rps = speed / (2 * np.pi * WHEEL_RADIUS)
     gear = np.ones(n, dtype=np.int32)
@@ -161,23 +166,29 @@ def generate_lap(
     t0 = np.datetime64("2026-07-13T09:30:00")
     timestamps = t0 + (np.arange(n) * dt * 1e6).astype("timedelta64[us]")
 
+    # Compass bearing (SPN 165): degrees CW from north; yaw is CCW from east.
+    bearing = (90.0 - np.degrees(yaw)) % 360.0
+    fuel_rate = np.clip(1.8 + throttle * 0.55 + rng.normal(0, 0.4, n), 0.5, None)  # L/h (SPN 183)
+
     table = pa.table(
         {
             "timestamp": timestamps,
-            "speed_kmh": (speed * 3.6).astype(np.float32),
-            "engine_rpm": rpm.astype(np.float32),
-            "gear": gear,
-            "throttle_pct": throttle.astype(np.float32),
-            "brake_pct": brake.astype(np.float32),
-            "steering_angle_deg": steering.astype(np.float32),
-            "accel_x_g": accel_long.astype(np.float32),
-            "accel_y_g": accel_lat.astype(np.float32),
-            "yaw_deg": (np.degrees(yaw) % 360.0).astype(np.float32),
-            "latitude": lat,
-            "longitude": lon,
-            "altitude_m": (45 + 8 * np.sin(si / m * 2 * np.pi)).astype(np.float32),
-            "coolant_temp_c": (82 + 6 * (1 - np.exp(-np.arange(n) / (n / 3))) + rng.normal(0, 0.3, n)).astype(np.float32),
-            "fuel_level_pct": np.linspace(95.0, 95.0 - 1.4e-3 * speed.sum() * dt, n).astype(np.float32),
+            column_name(84): np.minimum(speed * 3.6, SPEED_MAX_KMH).astype(np.float32),
+            column_name(190): rpm.astype(np.float32),
+            column_name(523): gear,
+            column_name(91): throttle.astype(np.float32),
+            column_name(521): brake.astype(np.float32),
+            column_name(1807): steering.astype(np.float32),
+            column_name(1810): accel_long.astype(np.float32),
+            column_name(1809): accel_lat.astype(np.float32),
+            column_name(1808): yaw_rate.astype(np.float32),
+            column_name(165): bearing.astype(np.float32),
+            column_name(584): lat,
+            column_name(585): lon,
+            column_name(580): (45 + 8 * np.sin(si / m * 2 * np.pi)).astype(np.float32),
+            column_name(110): (82 + 6 * (1 - np.exp(-np.arange(n) / (n / 3))) + rng.normal(0, 0.3, n)).astype(np.float32),
+            column_name(96): np.linspace(95.0, 95.0 - 1.4e-3 * speed.sum() * dt, n).astype(np.float32),
+            column_name(183): fuel_rate.astype(np.float32),
         }
     )
     path.parent.mkdir(parents=True, exist_ok=True)

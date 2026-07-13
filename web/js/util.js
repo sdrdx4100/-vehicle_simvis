@@ -16,15 +16,29 @@ export const ROLE_COLORS = {
   accel_y: "--series-7",
   rpm: "--series-8",
   yaw: "--series-5",
+  bearing: "--series-5",
   yaw_rate: "--series-2",
   altitude: "--series-2",
 };
 
 export const ROLE_LABELS = {
   speed: "Speed", rpm: "RPM", gear: "Gear", throttle: "Throttle",
-  brake: "Brake", steering: "Steering", accel_x: "Long G", accel_y: "Lat G",
-  accel_z: "Vert G", yaw: "Heading", yaw_rate: "Yaw rate", altitude: "Altitude",
+  brake: "Brake", steering: "Steering", accel_x: "Long accel", accel_y: "Lat accel",
+  accel_z: "Vert accel", yaw: "Yaw", bearing: "Heading", yaw_rate: "Yaw rate",
+  altitude: "Altitude",
 };
+
+export const GRAVITY = 9.80665;
+
+// Angle in whatever unit the log uses -> radians.
+export function toRad(value, unit) {
+  return unit === "rad" ? value : (value * Math.PI) / 180;
+}
+
+// Acceleration in the log's unit -> G.
+export function toG(value, unit) {
+  return unit && unit.includes("m/s") ? value / GRAVITY : value;
+}
 
 export function fmtTime(s) {
   if (!isFinite(s)) return "0:00.0";

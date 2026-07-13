@@ -7,9 +7,14 @@ Parquet 形式の車両ログ（実車・シミュレータ・CAN ダンプな�
 
 ## 特長
 
-- **ゼロコンフィグ読み込み** — 列名からチャンネル役割（時刻 / GPS / 速度 / 回転数 /
-  ギア / ペダル / 舵角 / 加速度 …）を自動判別。`speed_kmh`・`VehicleSpeed`・`spd`・
-  `GPS_Lat` のような多様な命名規則に対応し、単位も推定します。
+- **SAE J1939 準拠のシグナル体系** — SPN（Suspect Parameter Number）辞書を内蔵し、
+  `SPN84_WheelBasedVehicleSpeed`・`spn_190`・`SteeringWheelAngle` のような
+  J1939 形式の列を SPN 番号 / シグナル名から自動解決。単位も J1939 SLOT の
+  工学単位（km/h・rpm・%・rad・m/s²・方位角 deg…）で扱い、表示側で
+  rad→deg / m/s²→G / 方位角→進行方向を変換します。
+- **ゼロコンフィグ読み込み** — J1939 以外のログも、列名からチャンネル役割（時刻 / GPS /
+  速度 / 回転数 / ギア / ペダル / 舵角 / 加速度 …）を自動判別。`speed_kmh`・
+  `VehicleSpeed`・`spd`・`GPS_Lat` のような多様な命名規則に対応し、単位も推定します。
 - **プレイバックエンジン** — 再生 / 一時停止 / 0.25〜8 倍速 / ループ / シーク /
   キーボード操作（Space・←→）。全ビューが同一カーソルに同期します。
 - **トラックマップ** — GPS（lat/lon）またはローカル XY から走行軌跡を描画。
@@ -60,6 +65,28 @@ python -m simvis demo --data-dir data   # デモ用 parquet の生成のみ
 
 行が時刻順でなくても自動でソートされます。数値化できない列は無視され、
 判別された役割（mapping）は API とヘッダーで確認できます。
+
+### J1939 シグナル対応表（内蔵 SPN 辞書の抜粋）
+
+| SPN | シグナル | PGN | 単位 | ダッシュボード上の役割 |
+|---|---|---|---|---|
+| 84 | WheelBasedVehicleSpeed | 65265 CCVS | km/h | 速度ゲージ / トラックマップ色 |
+| 190 | EngineSpeed | 61444 EEC1 | rpm | タコメーター |
+| 91 | AcceleratorPedalPosition1 | 61443 EEC2 | % | スロットルメーター |
+| 521 | BrakePedalPosition | 61441 EBC1 | % | ブレーキメーター |
+| 523 | TransmissionCurrentGear | 61445 ETC2 | – | ギア表示 |
+| 1807 | SteeringWheelAngle | 61449 VDC2 | rad | ステアリング（deg に変換表示） |
+| 1808 | YawRate | 61449 VDC2 | rad/s | ヨーレートチャート |
+| 1809 / 1810 | Lateral / LongitudinalAcceleration | 61449 VDC2 | m/s² | G-G ダイアグラム（G に変換） |
+| 584 / 585 | Latitude / Longitude | 65267 VP | deg | トラックマップ |
+| 165 | CompassBearing | 65256 VDHR | deg | 車両マーカーの向き |
+| 580 | Altitude | 65256 VDHR | m | 追加チャンネル |
+| 110 / 96 / 183 | CoolantTemp / FuelLevel1 / EngineFuelRate | ET1 / DD / LFE1 | °C / % / L/h | 追加チャンネル |
+
+列名は `SPN84_WheelBasedVehicleSpeed`・`spn_84`・`WheelBasedVehicleSpeed` の
+いずれの形式でも解決されます（SPN 番号が最優先）。辞書は `simvis/j1939.py` で
+簡単に拡張できます。デモデータの速度は SPN 84 の SLOT 有効範囲
+（0–250.996 km/h）内に収まるよう生成されます。
 
 ## REST API
 

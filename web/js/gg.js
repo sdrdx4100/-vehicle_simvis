@@ -1,7 +1,7 @@
 // G-G diagram: lateral vs longitudinal acceleration with a fading trail
 // and grip-circle reference rings.
 
-import { cssVar, fitCanvas, bisect } from "./util.js";
+import { cssVar, fitCanvas, bisect, toG } from "./util.js";
 
 export class GGDiagram {
   constructor(canvas) {
@@ -14,10 +14,13 @@ export class GGDiagram {
     new ResizeObserver(() => this.draw()).observe(canvas);
   }
 
-  setData(payload) {
+  setData(payload, units = {}) {
     this.t = payload.t;
-    this.ax = payload.series.accel_x || null;
-    this.ay = payload.series.accel_y || null;
+    // Normalize to G regardless of the log's unit (J1939 VDC2 is m/s²).
+    const conv = (arr, unit) =>
+      arr ? arr.map((v) => (v == null ? null : toG(v, unit))) : null;
+    this.ax = conv(payload.series.accel_x, units.accel_x);
+    this.ay = conv(payload.series.accel_y, units.accel_y);
     let m = 0.5;
     for (const arr of [this.ax, this.ay]) {
       if (!arr) continue;
