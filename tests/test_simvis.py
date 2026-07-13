@@ -34,6 +34,12 @@ def test_detect_mapping_alt_names():
     assert m["lon"] == "GPS_Lon"
 
 
+def test_engine_speed_is_not_mistaken_for_vehicle_speed():
+    m = detect_mapping(["timestamp", "EngineSpeed", "VehicleSpeed"], {})
+    assert m["rpm"] == "EngineSpeed"
+    assert m["speed"] == "VehicleSpeed"
+
+
 def test_guess_unit():
     assert guess_unit("speed_kmh", "speed") == "km/h"
     assert guess_unit("mystery", None) == ""
@@ -133,6 +139,22 @@ def test_playback_payload(client):
     assert "rpm" in p["series"]
     assert p["t"][0] == 0
     assert all(a <= b for a, b in zip(p["t"], p["t"][1:]))
+
+
+def test_mapping_override_and_reset(client):
+    ds = client.get("/api/datasets/lap").json()
+    speed_col = ds["mapping"]["speed"]
+    rpm_col = ds["mapping"]["rpm"]
+
+    changed = client.put("/api/datasets/lap/mapping", json={"speed": rpm_col})
+    assert changed.status_code == 200
+    assert changed.json()["mapping"]["speed"] == rpm_col
+    playback = client.get("/api/datasets/lap/playback").json()
+    assert playback["seriesColumns"]["speed"] == rpm_col
+
+    reset = client.delete("/api/datasets/lap/mapping")
+    assert reset.status_code == 200
+    assert reset.json()["mapping"]["speed"] == speed_col
 
 
 def test_signals_downsampling(client):

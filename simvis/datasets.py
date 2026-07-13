@@ -14,7 +14,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from .mapping import detect_mapping, guess_unit
+from .mapping import ROLE_UNITS, detect_mapping, guess_unit
 
 
 def _slugify(name: str) -> str:
@@ -38,6 +38,7 @@ class Dataset:
     channels: dict[str, np.ndarray] = field(default_factory=dict)
     columns: list[dict] = field(default_factory=list)
     mapping: dict[str, str] = field(default_factory=dict)
+    detected_mapping: dict[str, str] = field(default_factory=dict)
     rows: int = 0
     _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
 
@@ -52,7 +53,8 @@ class Dataset:
 
     def _ingest(self, table: pa.Table) -> None:
         dtypes = {name: str(table.schema.field(name).type) for name in table.column_names}
-        self.mapping = detect_mapping(list(table.column_names), dtypes)
+        self.detected_mapping = detect_mapping(list(table.column_names), dtypes)
+        self.mapping = dict(self.detected_mapping)
 
         raw_time = self._extract_time(table)
         order = np.argsort(raw_time, kind="stable")
@@ -84,6 +86,36 @@ class Dataset:
         self.channels = channels
         self.columns = columns_meta
         self.rows = table.num_rows
+
+    def _refresh_column_roles(self) -> None:
+        for meta in self.columns:
+            role = next((r for r, c in self.mapping.items() if c == meta["name"]), None)
+            meta["role"] = role
+            meta["unit"] = guess_unit(meta["name"], role)
+
+    def update_mapping(self, updates: dict[str, Optional[str]]) -> None:
+        """Apply validated signal-role overrides for this server session."""
+        self.ensure_loaded()
+        allowed = set(ROLE_UNITS) - {"time"}
+        with self._lock:
+            mapping = dict(self.mapping)
+            for role, column in updates.items():
+                if role not in allowed:
+                    raise ValueError(f"role '{role}' cannot be overridden")
+                if column in (None, ""):
+                    mapping.pop(role, None)
+                elif column not in self.channels:
+                    raise ValueError(f"column '{column}' is not a numeric signal")
+                else:
+                    mapping[role] = column
+            self.mapping = mapping
+            self._refresh_column_roles()
+
+    def reset_mapping(self) -> None:
+        self.ensure_loaded()
+        with self._lock:
+            self.mapping = dict(self.detected_mapping)
+            self._refresh_column_roles()
 
     def _extract_time(self, table: pa.Table) -> np.ndarray:
         """Seconds as float64. Handles datetime, epoch s/ms/us/ns, or falls

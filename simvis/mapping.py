@@ -28,13 +28,15 @@ ROLE_PATTERNS: dict[str, list[str]] = {
     "lon": [r"^(lon|lng|longitude|gps_lon|gpslon|pos_lon|long)$", r"(lon(gitude)?|lng)$"],
     "x": [r"^(x|pos_x|position_x|pose_x|utm_x|local_x|east)$"],
     "y": [r"^(y|pos_y|position_y|pose_y|utm_y|local_y|north)$"],
+    # Resolve engine speed before generic vehicle speed. Otherwise a column
+    # named `EngineSpeed` is swallowed by the broad `speed` fallback below.
+    "rpm": [r"^(rpm|engine_rpm|engine_speed|n_engine|eng_rpm|ne)$", r"rpm"],
     "speed": [
         r"^(speed|velocity|vel|v|vx|kph|mph|speed_kmh|speed_kph|speed_mps|vehicle_speed|veh_speed|wheel_speed|gps_speed|spd)$",
         r"^(wheel_based_vehicle_speed|navigation_based_vehicle_speed)$",  # J1939 SPN 84 / 517
         r"speed",
         r"^vel",
     ],
-    "rpm": [r"^(rpm|engine_rpm|engine_speed|n_engine|eng_rpm|ne)$", r"rpm"],
     # Before `gear`: its generic "gear" pattern would swallow names like
     # gear_shift_in_process.
     "shift_in_process": [

@@ -64,6 +64,21 @@ def create_app(data_dir: str | Path | None = None) -> FastAPI:
     def dataset_meta(ds_id: str):
         return _dataset(ds_id).summary()
 
+    @app.put("/api/datasets/{ds_id}/mapping")
+    def update_mapping(ds_id: str, mapping: dict[str, str | None]):
+        ds = _dataset(ds_id)
+        try:
+            ds.update_mapping(mapping)
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
+        return ds.summary()
+
+    @app.delete("/api/datasets/{ds_id}/mapping")
+    def reset_mapping(ds_id: str):
+        ds = _dataset(ds_id)
+        ds.reset_mapping()
+        return ds.summary()
+
     @app.get("/api/datasets/{ds_id}/playback")
     def playback(ds_id: str, extra: str = Query("", description="comma-separated extra columns")):
         cols = [c for c in extra.split(",") if c]

@@ -11,6 +11,7 @@ import { Timeline } from "./timeline.js";
 import { TableView } from "./table.js";
 import { ShiftPanel } from "./shiftpanel.js";
 import { VehicleView } from "./vehicleview.js";
+import { SignalMappingDialog } from "./signal-mapping.js";
 import { el, fmtTime, ROLE_COLORS, ROLE_LABELS } from "./util.js";
 
 const $ = (sel) => document.querySelector(sel);
@@ -34,6 +35,16 @@ let datasets = [];
 let current = null;      // dataset summary
 let extraChannels = [];  // extra column names shown as charts
 let charts = [];
+
+const mappingDialog = new SignalMappingDialog(
+  $("#mapping-dialog"),
+  $("#mapping-btn"),
+  api,
+  async (updated) => {
+    setCurrent(updated);
+    await loadPlayback();
+  },
+);
 
 sync.onSeek = (t) => player.seek(t);
 trackMap.onSeek = (t) => player.seek(t);
@@ -84,13 +95,22 @@ async function refreshList(selectId = null) {
 }
 
 async function selectDataset(id) {
-  current = datasets.find((d) => d.id === id);
-  if (!current) return;
+  const selected = datasets.find((d) => d.id === id);
+  if (!selected) return;
+  const restored = await mappingDialog.restore(selected);
+  setCurrent(restored);
   extraChannels = [];
-  $("#dataset-meta").textContent =
-    `${(current.sizeBytes / 1024 / 1024).toFixed(1)} MB · ${current.sampleRate} Hz · ${Object.keys(current.mapping).length} mapped channels`;
   await loadPlayback();
   tableView.setDataset(id);
+}
+
+function setCurrent(dataset) {
+  current = dataset;
+  const index = datasets.findIndex((d) => d.id === dataset.id);
+  if (index >= 0) datasets[index] = dataset;
+  mappingDialog.setDataset(dataset);
+  $("#dataset-meta").textContent =
+    `${(current.sizeBytes / 1024 / 1024).toFixed(1)} MB · ${current.sampleRate} Hz · ${Object.keys(current.mapping).length} mapped channels`;
 }
 
 async function loadPlayback() {

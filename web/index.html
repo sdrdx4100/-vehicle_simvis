@@ -12,6 +12,7 @@
     <div class="logo">sim<span>vis</span></div>
     <select id="dataset-select" aria-label="Dataset"></select>
     <span class="meta" id="dataset-meta"></span>
+    <button id="mapping-btn" title="Choose which columns drive each dashboard signal">Signals</button>
     <div class="spacer"></div>
     <button id="upload-btn" title="Upload a parquet log">Upload .parquet</button>
     <input type="file" id="upload-input" accept=".parquet" class="hidden" />
@@ -22,6 +23,24 @@
     </div>
     <button id="theme-btn" title="Toggle light/dark theme" aria-label="Toggle theme">◐</button>
   </header>
+
+  <dialog id="mapping-dialog" aria-labelledby="mapping-title">
+    <form method="dialog">
+      <div class="dialog-head">
+        <div>
+          <h2 id="mapping-title">Signal mapping</h2>
+          <p>Choose which numeric column drives each dashboard signal.</p>
+        </div>
+        <button value="cancel" class="dialog-close" aria-label="Close">×</button>
+      </div>
+      <div id="mapping-fields"></div>
+      <div class="dialog-actions">
+        <span id="mapping-status" role="status"></span>
+        <button type="button" id="mapping-auto">Auto detect</button>
+        <button type="button" class="primary" id="mapping-apply">Apply mapping</button>
+      </div>
+    </form>
+  </dialog>
 
   <main>
     <div id="empty-state" class="hidden">
