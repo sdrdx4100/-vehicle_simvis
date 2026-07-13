@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from . import __version__
 from .datasets import DatasetManager
 from .sample_data import generate_all
-from .shifts import analyze as analyze_shifts
+from .shifts import analyze as analyze_shifts, detail as shift_detail
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
@@ -83,6 +83,13 @@ def create_app(data_dir: str | Path | None = None) -> FastAPI:
     @app.get("/api/datasets/{ds_id}/shifts")
     def shifts(ds_id: str):
         return analyze_shifts(_dataset(ds_id))
+
+    @app.get("/api/datasets/{ds_id}/shifts/{event_index}")
+    def shift_waveform(ds_id: str, event_index: int):
+        try:
+            return shift_detail(_dataset(ds_id), event_index)
+        except IndexError as exc:
+            raise HTTPException(404, f"shift event {event_index} not found") from exc
 
     @app.get("/api/datasets/{ds_id}/table")
     def table(ds_id: str, offset: int = 0, limit: int = 100):

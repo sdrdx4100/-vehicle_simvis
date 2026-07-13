@@ -214,7 +214,27 @@ def test_shift_events_from_flag(tmp_path):
     assert ev["speedOff"] == pytest.approx(50.0, abs=0.5)  # v at flag OFF
     assert 250 <= ev["durationMs"] <= 320
     assert ev["peakJerk"] > 0
+    assert ev["jerkP95"] > 0
+    assert ev["jerkRms"] > 0
+    assert ev["accelP2P"] > 0
+    assert ev["shockPhase"] in ("during", "settle")
     assert ev["severity"] in ("smooth", "moderate", "harsh")
+    assert r["transitions"][0]["gearFrom"] == 3
+    assert r["transitions"][0]["gearTo"] == 4
+
+
+def test_shift_detail_waveform_and_reference(tmp_path):
+    _make_shift_log(tmp_path, with_flag=True)
+    c = TestClient(create_app(tmp_path))
+    r = c.get("/api/datasets/flagged/shifts/0")
+    assert r.status_code == 200
+    detail = r.json()
+    assert detail["event"]["index"] == 0
+    assert detail["t"][0] < 0 < detail["t"][-1]
+    assert len(detail["series"]["jerk"]) == len(detail["t"])
+    assert detail["reference"]["count"] == 1
+    assert len(detail["reference"]["accelMedian"]) == len(detail["reference"]["t"])
+    assert c.get("/api/datasets/flagged/shifts/99").status_code == 404
 
 
 def test_shift_events_fallback_to_gear(tmp_path):

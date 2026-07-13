@@ -23,7 +23,11 @@ const gg = new GGDiagram($("#gg-canvas"));
 const gauges = new GaugeCluster(document.body);
 const timeline = new Timeline($("#timeline"), player);
 const tableView = new TableView($("#table-view"));
-const shiftPanel = new ShiftPanel($("#shift-card"), (t) => player.seek(t));
+const shiftPanel = new ShiftPanel(
+  $("#shift-card"),
+  (t) => player.seek(t),
+  (index) => api.shiftDetail(current.id, index),
+);
 const vehicleView = new VehicleView($("#vehicle-strip"));
 
 let datasets = [];
@@ -54,6 +58,7 @@ function redrawAll() {
   gg.draw();
   gauges.redraw();
   timeline.draw();
+  shiftPanel.drawDetail();
   for (const c of charts) c.draw();
 }
 

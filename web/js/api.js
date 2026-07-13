@@ -16,6 +16,8 @@ export const api = {
   playback: (id, extra = []) =>
     getJSON(`/api/datasets/${encodeURIComponent(id)}/playback?extra=${encodeURIComponent(extra.join(","))}`),
   shifts: (id) => getJSON(`/api/datasets/${encodeURIComponent(id)}/shifts`),
+  shiftDetail: (id, index) =>
+    getJSON(`/api/datasets/${encodeURIComponent(id)}/shifts/${encodeURIComponent(index)}`),
   table: (id, offset, limit) =>
     getJSON(`/api/datasets/${encodeURIComponent(id)}/table?offset=${offset}&limit=${limit}`),
   makeDemo: async () => {
