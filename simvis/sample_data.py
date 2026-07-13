@@ -109,8 +109,8 @@ def generate_lap(
     hz: float = 25.0,
     track_len_m: float = 5400.0,
     origin: tuple[float, float] = (34.8431, 136.5410),  # Suzuka-ish
-    v_max_kmh: float = 250.0,  # stays inside the SPN 84 SLOT range
-    grip_g: float = 1.55,
+    v_max_kmh: float = 160.0,
+    grip_g: float = 1.10,
     corner_radius: tuple[float, float] = (28.0, 320.0),
 ) -> Path:
     rng = np.random.default_rng(seed)
@@ -241,8 +241,8 @@ def generate_all(data_dir: Path) -> list[Path]:
             duration_s=300,
             hz=20,
             track_len_m=7200,
-            v_max_kmh=145,
-            grip_g=0.95,
+            v_max_kmh=110,
+            grip_g=0.80,
             corner_radius=(16.0, 140.0),
             origin=(35.3606, 138.7274),
         ),

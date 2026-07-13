@@ -13,23 +13,37 @@ const PITCH_PER_G = 3.2;      // deg of body pitch per longitudinal G
 const MAX_PITCH = 5;
 
 export const TRUCK_SVG = `
-<svg viewBox="0 0 300 96" width="100%" height="100%" role="img" aria-label="Side view of a truck driving">
+<svg viewBox="0 0 300 96" width="100%" height="100%" role="img" aria-label="Cute side view of a truck driving">
+  <defs>
+    <linearGradient id="vv-box-gradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="var(--series-1)" stop-opacity=".78"/>
+      <stop offset="1" stop-color="var(--series-1)" stop-opacity=".28"/>
+    </linearGradient>
+  </defs>
   <line x1="0" y1="80.5" x2="300" y2="80.5" stroke="var(--axis)" stroke-width="1"/>
   <line id="vv-dashes" x1="0" y1="87" x2="300" y2="87"
         stroke="var(--grid)" stroke-width="3" stroke-dasharray="16 18"/>
   <g id="vv-truck" transform="translate(52 0)">
+    <g class="vv-smoke" fill="var(--text-muted)">
+      <circle cx="113" cy="10" r="3" opacity=".36"/>
+      <circle cx="108" cy="5" r="2.2" opacity=".22"/>
+    </g>
     <g id="vv-body">
       <!-- exhaust stack -->
       <rect x="112" y="14" width="5" height="22" rx="2" fill="var(--text-muted)"/>
       <!-- cargo box -->
-      <rect x="8" y="18" width="102" height="40" rx="4"
-            fill="var(--ghost)" stroke="var(--axis)" stroke-width="1.5"/>
+      <rect x="8" y="18" width="102" height="40" rx="8"
+            fill="url(#vv-box-gradient)" stroke="var(--series-1)" stroke-width="1.5"/>
+      <text x="59" y="42" text-anchor="middle" fill="var(--text-primary)"
+            font-family="system-ui, sans-serif" font-size="10" font-weight="700" letter-spacing="1.5">SIMVIS</text>
       <!-- chassis -->
       <rect x="8" y="56" width="164" height="7" rx="2" fill="var(--text-secondary)"/>
       <!-- cab -->
       <path d="M118 62 V32 q0 -4 4 -4 h28 q4 0 6 3 l12 18 q2 3 2 6 v7 z" fill="var(--series-1)"/>
       <!-- windshield -->
       <path d="M140 33 h9 q2 0 3.4 1.8 L162 48 h-22 z" fill="var(--seq-150)"/>
+      <path d="M123 34 h13 v23 h-13" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1"/>
+      <rect x="129" y="45" width="4" height="1.5" rx=".7" fill="rgba(255,255,255,.7)"/>
       <!-- bumper + headlight -->
       <rect x="164" y="58" width="8" height="9" rx="2" fill="var(--text-secondary)"/>
       <circle cx="168" cy="52" r="2.4" fill="var(--series-3)"/>

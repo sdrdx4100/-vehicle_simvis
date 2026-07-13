@@ -103,6 +103,7 @@ def test_demo_speed_within_j1939_slot_range(tmp_path):
     t = pq.read_table(path)
     speed = t[column_name(84)].to_numpy()
     assert float(speed.max()) <= SPEED_MAX_KMH
+    assert float(speed.max()) <= 160.0  # demo should not look like a 250 km/h race replay
     bearing = t[column_name(165)].to_numpy()
     assert 0.0 <= float(bearing.min()) and float(bearing.max()) < 360.0
 

@@ -50,10 +50,6 @@
           <h2>Track map <span class="sub" id="map-sub">position colored by speed</span></h2>
           <canvas class="fill" id="map-canvas"></canvas>
         </div>
-        <div class="card" id="vehicle-card">
-          <h2>Vehicle <span class="sub">wheels, road and pitch follow playback</span></h2>
-          <div id="vehicle-strip"></div>
-        </div>
         <div class="card" id="gg-card">
           <h2>G-G diagram <span class="sub">lateral vs longitudinal acceleration</span></h2>
           <canvas class="fill" id="gg-canvas"></canvas>
@@ -61,39 +57,49 @@
       </div>
 
       <div class="col">
-        <div class="card">
-          <div id="gauges">
-            <div class="gauge-box"><canvas id="gauge-speed" height="130"></canvas></div>
-            <div class="gauge-box"><canvas id="gauge-rpm" height="130"></canvas></div>
-            <div class="tile-stack">
-              <div class="tile">
-                <div class="label">Gear <span id="shift-lamp" hidden>SHIFT</span></div>
-                <div class="value" id="gear-value">–</div>
+        <div class="card" id="instrument-card">
+          <div id="instrument-row">
+            <section id="cluster-panel" aria-label="Instrument cluster">
+              <div id="gauges">
+                <div class="gauge-box"><canvas id="gauge-speed" width="220" height="220"></canvas></div>
+                <div class="tile-stack">
+                  <div class="tile">
+                    <div class="label">Gear <span id="shift-lamp" hidden>SHIFT</span></div>
+                    <div class="value" id="gear-value">–</div>
+                  </div>
+                  <div class="tile">
+                    <div class="label">Elapsed</div>
+                    <div class="value" id="lap-time">0:00.0</div>
+                  </div>
+                </div>
+                <div class="gauge-box"><canvas id="gauge-rpm" width="220" height="220"></canvas></div>
               </div>
-              <div class="tile">
-                <div class="label">Elapsed</div>
-                <div class="value" id="lap-time" style="font-size:19px">0:00.0</div>
+              <div id="driver-inputs">
+                <div class="meter throttle">
+                  <div class="label-row"><span>Throttle</span><b>–</b></div>
+                  <div class="track"><div class="fillbar"></div></div>
+                </div>
+                <div class="meter brake">
+                  <div class="label-row"><span>Brake</span><b>–</b></div>
+                  <div class="track"><div class="fillbar"></div></div>
+                </div>
+                <div id="steer-wrap">
+                  <svg id="steer-icon" width="28" height="28" viewBox="0 0 34 34" aria-hidden="true">
+                    <circle cx="17" cy="17" r="14" fill="none" stroke="currentColor" stroke-width="3"/>
+                    <circle cx="17" cy="17" r="4" fill="currentColor"/>
+                    <line x1="4"  y1="17" x2="13" y2="17" stroke="currentColor" stroke-width="3"/>
+                    <line x1="21" y1="17" x2="30" y2="17" stroke="currentColor" stroke-width="3"/>
+                    <line x1="17" y1="21" x2="17" y2="30" stroke="currentColor" stroke-width="3"/>
+                  </svg>
+                  <span id="steer-val">–</span>
+                </div>
               </div>
-            </div>
-          </div>
-          <div class="meter throttle">
-            <div class="label-row"><span>Throttle</span><b>–</b></div>
-            <div class="track"><div class="fillbar"></div></div>
-          </div>
-          <div class="meter brake">
-            <div class="label-row"><span>Brake</span><b>–</b></div>
-            <div class="track"><div class="fillbar"></div></div>
-          </div>
-          <div id="steer-wrap">
-            <svg id="steer-icon" width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
-              <circle cx="17" cy="17" r="14" fill="none" stroke="currentColor" stroke-width="3"/>
-              <circle cx="17" cy="17" r="4" fill="currentColor"/>
-              <line x1="4"  y1="17" x2="13" y2="17" stroke="currentColor" stroke-width="3"/>
-              <line x1="21" y1="17" x2="30" y2="17" stroke="currentColor" stroke-width="3"/>
-              <line x1="17" y1="21" x2="17" y2="30" stroke="currentColor" stroke-width="3"/>
-            </svg>
-            <span id="steer-val">–</span>
-            <span class="meta" style="color:var(--text-muted);font-size:11px">steering</span>
+            </section>
+            <section id="vehicle-panel" aria-label="Animated truck side view">
+              <div class="vehicle-panel-title">Road view <span>LIVE</span></div>
+              <div id="vehicle-strip"></div>
+              <div class="vehicle-hint">wheels, road and pitch follow playback</div>
+            </section>
           </div>
         </div>
 
