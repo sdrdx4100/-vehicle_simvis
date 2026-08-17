@@ -97,6 +97,38 @@ def test_detect_mapping_j1939_signal_names_without_spn():
     assert m["bearing"] == "CompassBearing"
 
 
+def test_detect_mapping_inca_mnemonics():
+    cols = ["time", "nmot", "vfzg", "wped", "gang", "bls",
+            "along", "aquer", "lenkwinkel", "gierrate"]
+    m = detect_mapping(cols, {})
+    assert m["rpm"] == "nmot"
+    assert m["speed"] == "vfzg"
+    assert m["throttle"] == "wped"
+    assert m["gear"] == "gang"
+    assert m["brake"] == "bls"
+    assert m["accel_x"] == "along"
+    assert m["accel_y"] == "aquer"
+    assert m["steering"] == "lenkwinkel"
+    assert m["yaw_rate"] == "gierrate"
+
+
+def test_detect_mapping_inca_decorations():
+    # Device\Signal\raster and unit-word suffixes must all resolve.
+    cols = ["Time (s)", "ETKC:1\\nmot\\10ms", "vfzg_100ms", "wPed_w"]
+    m = detect_mapping(cols, {})
+    assert m["rpm"] == "ETKC:1\\nmot\\10ms"
+    assert m["speed"] == "vfzg_100ms"
+    assert m["throttle"] == "wPed_w"
+
+
+def test_inca_informational_alias_has_no_dashboard_role():
+    from simvis import inca
+    assert inca.lookup("tmot") is None      # known, but no dashboard slot
+    assert inca.is_known("tmot") is True
+    assert inca.lookup("totally_unknown") is None
+    assert inca.is_known("totally_unknown") is False
+
+
 def test_j1939_units():
     assert guess_unit("SPN1807_SteeringWheelAngle", "steering") == "rad"
     assert guess_unit("SPN1809_LateralAcceleration", "accel_y") == "m/s²"

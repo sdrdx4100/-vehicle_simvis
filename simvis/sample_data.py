@@ -46,6 +46,23 @@ def _smooth_series(x: np.ndarray, window: int) -> np.ndarray:
     return np.convolve(xp, kernel, mode="same")[pad:-pad]
 
 
+def _altitude_track(m: int, ds: float, rng: np.random.Generator, relief: float) -> np.ndarray:
+    """Closed elevation profile (m) integrated from a mean-zero road-grade
+    profile, so altitude is periodic over the loop and each lap overlays.
+    Combined grade peaks at roughly ``relief * 5.7 %`` — realistic hills."""
+    u = np.arange(m) / m
+    ph = rng.uniform(0, 2 * np.pi, 3)
+    grade = relief * (
+        3.2 * np.sin(2 * np.pi * u + ph[0])
+        + 1.6 * np.sin(4 * np.pi * u + ph[1])
+        + 0.9 * np.sin(6 * np.pi * u + ph[2])
+    )
+    grade -= grade.mean()                       # mean-zero -> altitude closes
+    alt = np.cumsum(grade / 100.0 * ds)
+    alt -= np.linspace(0.0, alt[-1], m)         # remove residual drift
+    return alt - alt.min() + 40.0               # base elevation 40 m
+
+
 def _segment_track(rng: np.random.Generator, target_len_m: float,
                    r_min: float, r_max: float) -> np.ndarray:
     """Curvature (1/m) sampled every DS meters along a closed circuit made
@@ -112,6 +129,7 @@ def generate_lap(
     v_max_kmh: float = 160.0,
     grip_g: float = 1.10,
     corner_radius: tuple[float, float] = (28.0, 320.0),
+    relief: float = 1.0,
 ) -> Path:
     rng = np.random.default_rng(seed)
     kappa_track = _segment_track(rng, track_len_m, *corner_radius)
@@ -220,7 +238,7 @@ def generate_lap(
             column_name(165): bearing.astype(np.float32),
             column_name(584): lat,
             column_name(585): lon,
-            column_name(580): (45 + 8 * np.sin(si / m * 2 * np.pi)).astype(np.float32),
+            column_name(580): np.interp(si, stations, _altitude_track(m, DS, rng, relief)).astype(np.float32),
             column_name(110): (82 + 6 * (1 - np.exp(-np.arange(n) / (n / 3))) + rng.normal(0, 0.3, n)).astype(np.float32),
             column_name(96): np.linspace(95.0, 95.0 - 1.4e-3 * speed.sum() * dt, n).astype(np.float32),
             column_name(183): fuel_rate.astype(np.float32),
@@ -234,7 +252,7 @@ def generate_lap(
 def generate_all(data_dir: Path) -> list[Path]:
     data_dir = Path(data_dir)
     return [
-        generate_lap(data_dir / "circuit_hotlap.parquet", seed=7, duration_s=300, track_len_m=5400),
+        generate_lap(data_dir / "circuit_hotlap.parquet", seed=7, duration_s=300, track_len_m=5400, relief=0.7),
         generate_lap(
             data_dir / "mountain_touge.parquet",
             seed=23,
@@ -245,5 +263,6 @@ def generate_all(data_dir: Path) -> list[Path]:
             grip_g=0.80,
             corner_radius=(16.0, 140.0),
             origin=(35.3606, 138.7274),
+            relief=1.7,
         ),
     ]

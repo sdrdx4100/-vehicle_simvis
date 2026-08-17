@@ -11,6 +11,9 @@ const DASH_PX_PER_M = 2.2;    // road-line scroll
 const DASH_PERIOD = 34;       // dasharray 16+18
 const PITCH_PER_G = 3.2;      // deg of body pitch per longitudinal G
 const MAX_PITCH = 5;
+const GRADE_HALF_WINDOW_M = 25; // distance half-window for GPS-grade slope
+const MAX_TILT_DEG = 8;         // clamp for the road-incline visual
+const ALT_TO_M = { m: 1, ft: 0.3048, feet: 0.3048 };
 
 export const TRUCK_SVG = `
 <svg viewBox="0 0 300 96" width="100%" height="100%" role="img" aria-label="Cute side view of a truck driving">
@@ -20,8 +23,10 @@ export const TRUCK_SVG = `
       <stop offset="1" stop-color="var(--series-1)" stop-opacity=".28"/>
     </linearGradient>
   </defs>
-  <line x1="0" y1="80.5" x2="300" y2="80.5" stroke="var(--axis)" stroke-width="1"/>
-  <line id="vv-dashes" x1="0" y1="87" x2="300" y2="87"
+  <!-- scene = road + truck; it tilts as one with the GPS road grade -->
+  <g id="vv-scene">
+  <line x1="-80" y1="80.5" x2="380" y2="80.5" stroke="var(--axis)" stroke-width="1"/>
+  <line id="vv-dashes" x1="-80" y1="87" x2="380" y2="87"
         stroke="var(--grid)" stroke-width="3" stroke-dasharray="16 18"/>
   <g id="vv-truck" transform="translate(52 0)">
     <g class="vv-smoke" fill="var(--text-muted)">
@@ -85,6 +90,9 @@ export const TRUCK_SVG = `
       </g>
     </g>
   </g>
+  </g>
+  <text id="vv-grade" x="6" y="13" fill="var(--text-muted)"
+        font-family="system-ui, sans-serif" font-size="10" font-weight="600" visibility="hidden"></text>
 </svg>`;
 
 export class VehicleView {
@@ -96,10 +104,13 @@ export class VehicleView {
       spokes: g.querySelector(".vv-spokes"),
       cx: parseFloat(g.dataset.cx),
     }));
+    this.scene = container.querySelector("#vv-scene");
+    this.gradeText = container.querySelector("#vv-grade");
     this.t = [];
     this.dist = [];
     this.accel = null;
     this.accelUnit = "";
+    this.grade = null; // road grade in % per sample, or null when no altitude
   }
 
   setData(payload, units = {}) {
@@ -117,7 +128,34 @@ export class VehicleView {
         this.dist[i] = this.dist[i - 1] + ((v0 + v1) / 2) * (this.t[i] - this.t[i - 1]);
       }
     }
+    this.grade = this.#computeGrade(payload.series.altitude, units.altitude, speed);
+    this.gradeText.setAttribute("visibility", this.grade ? "visible" : "hidden");
     this.setCursor(0);
+  }
+
+  // Road grade (%) from GPS altitude over travelled distance. GPS altitude is
+  // noisy, so slope is a distance-windowed central difference (±25 m) rather
+  // than a per-sample derivative — that filters the metre-scale jitter and
+  // needs the vehicle to actually move to register a gradient.
+  #computeGrade(altitude, altUnit, speed) {
+    if (!altitude || !speed) return null;
+    const toM = ALT_TO_M[(altUnit || "m").toLowerCase()] ?? 1;
+    const n = this.t.length;
+    const alt = new Array(n);
+    for (let i = 0; i < n; i++) alt[i] = altitude[i] == null ? null : altitude[i] * toM;
+    const grade = new Array(n).fill(0);
+    let lo = 0, hi = 0;
+    for (let i = 0; i < n; i++) {
+      while (lo < i && this.dist[i] - this.dist[lo] > GRADE_HALF_WINDOW_M) lo++;
+      while (hi < n - 1 && this.dist[hi] - this.dist[i] < GRADE_HALF_WINDOW_M) hi++;
+      const dd = this.dist[hi] - this.dist[lo];
+      if (dd > 2 && alt[lo] != null && alt[hi] != null) {
+        grade[i] = (100 * (alt[hi] - alt[lo])) / dd; // rise/run %
+      } else if (i > 0) {
+        grade[i] = grade[i - 1]; // stationary: hold last slope
+      }
+    }
+    return grade;
   }
 
   setCursor(time) {
@@ -136,11 +174,33 @@ export class VehicleView {
     // which is how the road must flow under a truck driving to the right.
     this.dashes.setAttribute("stroke-dashoffset", `${(d * DASH_PX_PER_M) % DASH_PERIOD}`);
 
+    // Road incline: tilt the whole scene (ground + truck) by the GPS grade,
+    // so the truck visibly climbs and descends. Body pitch from acceleration
+    // (squat/dive) then rides on top of the inclined road.
+    if (this.grade) {
+      const gr = this.#gradeAt(i, time);
+      const tiltDeg = Math.max(-MAX_TILT_DEG, Math.min(MAX_TILT_DEG, (Math.atan(gr / 100) * 180) / Math.PI));
+      // Uphill (positive grade) rotates the scene counter-clockwise so the
+      // right/forward end rises — SVG y is down, hence the negative sign.
+      this.scene.setAttribute("transform", `rotate(${(-tiltDeg).toFixed(2)} 150 80)`);
+      const arrow = gr > 0.3 ? "▲" : gr < -0.3 ? "▼" : "▬";
+      this.gradeText.textContent = `${arrow} ${gr >= 0 ? "+" : ""}${gr.toFixed(1)}% grade`;
+    }
+
     let pitch = 0;
     if (this.accel && this.accel[i] != null) {
       const g = toG(this.accel[i], this.accelUnit);
       pitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, -g * PITCH_PER_G));
     }
     this.body.setAttribute("transform", `rotate(${pitch.toFixed(2)} 90 63)`);
+  }
+
+  #gradeAt(i, time) {
+    let gr = this.grade[i];
+    if (i < this.t.length - 1) {
+      const f = (time - this.t[i]) / (this.t[i + 1] - this.t[i] || 1);
+      gr += (this.grade[i + 1] - this.grade[i]) * Math.max(0, Math.min(1, f));
+    }
+    return gr;
   }
 }

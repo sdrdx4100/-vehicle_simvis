@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 from typing import Optional
 
-from . import j1939
+from . import inca, j1939
 
 # Roles the frontend knows how to render specially. Each entry is a list of
 # regexes tried in order against the normalized column name; first column to
@@ -165,6 +165,16 @@ def detect_mapping(columns: list[str], dtypes: dict[str, str]) -> dict[str, str]
             if role is not None and role not in mapping:
                 mapping[role] = col
                 taken.add(col)
+
+    # ETAS INCA / A2L ECU-internal mnemonics (nmot, vfzg, wped, gang, …),
+    # ahead of the generic heuristics but below explicit J1939 SPNs.
+    for col in columns:
+        if col in taken:
+            continue
+        role = inca.lookup(col)
+        if role is not None and role not in mapping:
+            mapping[role] = col
+            taken.add(col)
 
     for role, patterns in ROLE_PATTERNS.items():
         if role in mapping:
